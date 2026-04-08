@@ -73,10 +73,8 @@ cdgi_attendance/
 
 ## Admin Credentials
 
-Default: `ADMIN001` / `admin@CDGI2025`
-
 Change the password after first login from Admin Panel.
 =======
 # Attendance-System
-Face recognition based attendance system 
->>>>>>> ddeccb60e492468c6fe577adc01b49e9d3f5027b
+Face recognition based attendance system .......
+
