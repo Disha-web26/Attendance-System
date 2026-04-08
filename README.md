@@ -22,11 +22,6 @@ http://localhost:5000
 
 ## Default Admin Login
 
-| Field | Value |
-|-------|-------|
-| Employee ID | `ADMIN001` |
-| Password | `admin@CDGI2025` |
-
 > Admin account is auto-created on first run.
 
 ---
