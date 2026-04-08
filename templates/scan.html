@@ -1,0 +1,425 @@
+{% extends "base.html" %}
+{% block title %}Mark Attendance — CDGI{% endblock %}
+{% block content %}
+<div class="min-h-screen bg-gray-50 py-8 px-4">
+<div class="max-w-lg mx-auto space-y-4">
+
+  <!-- Header card -->
+  <div class="bg-primary rounded-2xl p-5 text-white text-center">
+    <h1 class="text-xl font-black font-raleway">Mark Attendance</h1>
+    <p class="text-blue-200 text-xs mt-0.5">Chameli Devi Group of Institutions</p>
+    <p id="clk" class="text-accent font-mono text-3xl font-black mt-2 tracking-wide"></p>
+    <p id="clkd" class="text-blue-300 text-xs mt-0.5"></p>
+  </div>
+
+  <!-- Today's status -->
+  <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
+    <h3 class="font-bold text-primary text-sm mb-3 flex items-center gap-2">
+      <i class="fas fa-calendar-check text-accent"></i> Today's Attendance Status
+    </h3>
+    <div id="today-box" class="text-gray-400 text-sm text-center py-2">
+      <i class="fas fa-spinner fa-spin mr-1"></i> Loading…
+    </div>
+  </div>
+
+  <!-- Step 1: Location -->
+  <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
+    <h3 class="font-bold text-primary text-sm mb-3 flex items-center gap-2">
+      <span class="w-6 h-6 bg-primary text-white rounded-full flex items-center justify-center text-xs font-black">1</span>
+      Campus Location Verification
+    </h3>
+    <!-- Fixed college info -->
+    <div class="bg-blue-50 rounded-xl p-3 mb-3 flex items-start gap-3 border border-blue-100">
+      <i class="fas fa-map-marker-alt text-primary text-base mt-0.5"></i>
+      <div>
+        <p class="font-bold text-primary text-xs">Chameli Devi Group of Institutions</p>
+        <p class="text-gray-500 text-xs">Khandwa Road, Umri Khedi, Indore</p>
+        <p class="text-gray-400 text-xs mt-0.5">Attendance only allowed within <strong>300m</strong> of campus</p>
+      </div>
+    </div>
+    <div id="loc-box" class="loc-loading text-sm text-center">
+      <button onclick="startLocTracking()" class="btn btn-primary btn-sm">
+        <i class="fas fa-map-marker-alt"></i> Verify My Location
+      </button>
+    </div>
+    <p id="loc-dist" class="hidden text-center text-xs text-gray-400 mt-2"></p>
+  </div>
+
+  <!-- Step 2: Face -->
+  <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
+    <h3 class="font-bold text-primary text-sm mb-3 flex items-center gap-2">
+      <span class="w-6 h-6 bg-primary text-white rounded-full flex items-center justify-center text-xs font-black">2</span>
+      Face Verification
+    </h3>
+    <div id="ai-status" class="alert alert-info text-xs mb-3">
+      <i class="fas fa-spinner fa-spin mr-1"></i> Loading AI face recognition models…
+    </div>
+    <div class="relative bg-black rounded-xl overflow-hidden" style="height:256px">
+      <video id="cam-feed" autoplay playsinline muted class="w-full h-full object-cover"></video>
+      <canvas id="cam-canvas" class="absolute inset-0 w-full h-full" style="display:none"></canvas>
+      <div class="absolute inset-0 flex items-center justify-center pointer-events-none">
+        <div id="face-ring" class="w-44 h-44 rounded-full border-4 border-dashed border-white/40 flex items-center justify-center transition-all">
+          <p id="ring-txt" class="text-white text-xs font-bold text-center opacity-70 px-4">Position your<br>face here</p>
+        </div>
+      </div>
+      <div id="scan-line" class="hidden absolute left-0 right-0 h-0.5 bg-accent opacity-80" style="animation:scanLine 2s linear infinite;top:20%"></div>
+    </div>
+    <div class="mt-3 flex gap-2">
+      <button id="btn-cam" onclick="startCam()" disabled class="btn btn-primary flex-1 justify-center btn-sm opacity-50">
+        <i class="fas fa-camera"></i> Start Camera
+      </button>
+      <button id="btn-scan" onclick="doFaceScan()" class="hidden btn btn-success flex-1 justify-center btn-sm">
+        <i class="fas fa-check"></i> Scan & Verify
+      </button>
+      <button id="btn-retry" onclick="retryScan()" class="hidden btn btn-ghost flex-1 justify-center btn-sm">
+        <i class="fas fa-redo"></i> Retry
+      </button>
+    </div>
+    <div id="face-res" class="hidden mt-3 alert text-xs text-center whitespace-pre-line"></div>
+
+    <!-- Identity card shown after match -->
+    <div id="id-card" class="hidden mt-4 id-card">
+      <div class="flex items-center gap-4">
+        <img id="ic-photo" src="" class="w-16 h-16 rounded-xl object-cover border-2 border-accent shadow-lg">
+        <div class="flex-1 min-w-0">
+          <p class="text-accent text-xs font-bold uppercase tracking-wider">✅ Identity Verified</p>
+          <p id="ic-name"  class="font-black text-base text-white mt-0.5 truncate"></p>
+          <p id="ic-empid" class="text-blue-200 text-xs font-bold mt-0.5"></p>
+          <p id="ic-dept"  class="text-blue-300 text-xs truncate"></p>
+          <p id="ic-desig" class="text-blue-300 text-xs truncate"></p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Step 3: Action -->
+  <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
+    <h3 class="font-bold text-primary text-sm mb-4 flex items-center gap-2">
+      <span class="w-6 h-6 bg-primary text-white rounded-full flex items-center justify-center text-xs font-black">3</span>
+      Mark Attendance
+    </h3>
+    <div class="grid grid-cols-2 gap-3">
+      <button id="btn-ci" onclick="markAtt('in')" disabled
+          class="btn btn-success justify-center py-4 opacity-40 flex-col gap-1">
+        <i class="fas fa-sign-in-alt text-xl"></i>
+        <span class="font-black text-sm">Check In</span>
+        <span class="text-xs opacity-70">Mark arrival</span>
+      </button>
+      <button id="btn-co" onclick="markAtt('out')" disabled
+          class="btn justify-center py-4 opacity-40 flex-col gap-1" style="background:#7c3aed;color:white">
+        <i class="fas fa-sign-out-alt text-xl"></i>
+        <span class="font-black text-sm">Check Out</span>
+        <span class="text-xs opacity-70">Mark departure</span>
+      </button>
+    </div>
+    <div id="att-res" class="hidden mt-4 rounded-xl p-4 text-sm font-semibold text-center"></div>
+  </div>
+
+</div>
+</div>
+
+<style>
+@keyframes scanLine { 0%{top:15%} 100%{top:82%} }
+</style>
+{% endblock %}
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/@vladmandic/face-api/dist/face-api.js"></script>
+<script>
+const MODEL_URL      = "https://cdn.jsdelivr.net/npm/@vladmandic/face-api/model";
+const COLLEGE_LAT    = 22.6595;
+const COLLEGE_LNG    = 75.8370;
+const MAX_RADIUS     = 300;
+const FACE_THRESHOLD = 0.50;
+
+let modelsOk     = false;
+let locationOK   = false;
+let faceOK       = false;
+let userLat      = 0, userLng = 0;
+let faculty      = null;
+let camStream    = null;
+let capturedB64  = "";
+let watchId      = null;
+let ciDone       = false, coDone = false;
+
+/* ── Clock ────────────────────────────────────────────────────────── */
+function tick() {
+  const n = new Date();
+  document.getElementById("clk").textContent = n.toLocaleTimeString("en-IN");
+  document.getElementById("clkd").textContent = n.toLocaleDateString("en-IN",{weekday:"long",day:"numeric",month:"long",year:"numeric"});
+}
+setInterval(tick, 1000); tick();
+
+/* ── Load AI models ────────────────────────────────────────────────── */
+async function loadModels() {
+  try {
+    await Promise.all([
+      faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL),
+      faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL),
+      faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL),
+    ]);
+    modelsOk = true;
+    setAiStatus("success","<i class='fas fa-check-circle mr-1'></i> AI Face Recognition Ready");
+    document.getElementById("btn-cam").disabled = false;
+    document.getElementById("btn-cam").classList.remove("opacity-50");
+  } catch {
+    setAiStatus("error","<i class='fas fa-times mr-1'></i> Model load failed — please refresh.");
+  }
+}
+function setAiStatus(type, html) {
+  const el = document.getElementById("ai-status");
+  el.className = `alert alert-${type} text-xs mb-3`;
+  el.innerHTML = html;
+}
+
+/* ── Load faculty data ──────────────────────────────────────────────── */
+async function init() {
+  try {
+    const res = await fetch("/api/auth/me", { cache: "no-store" });
+    if (!res.ok) { window.location.replace("/login"); return; }
+    faculty = await res.json();
+  } catch { window.location.replace("/login"); }
+  await loadTodayStatus();
+  await loadModels();
+}
+
+/* ── Today status ───────────────────────────────────────────────────── */
+async function loadTodayStatus() {
+  try {
+    const res  = await fetch("/api/attendance/today-status", { cache: "no-store" });
+    const data = await res.json();
+    const el   = document.getElementById("today-box");
+
+    if (!data.hasRecord) {
+      el.innerHTML = `<span class="text-gray-400"><i class="fas fa-clock mr-1"></i>Not checked in yet today.</span>`;
+      return;
+    }
+
+    const badge = s => ({ present:'<span class="badge badge-present">Present</span>', half_day:'<span class="badge badge-halfday">Half Day</span>', absent:'<span class="badge badge-absent">Absent</span>' })[s] || s;
+
+    el.innerHTML = `<div class="grid grid-cols-2 md:grid-cols-4 gap-2 text-left">
+      <div class="bg-green-50 rounded-xl p-3 border border-green-100">
+        <p class="text-xs text-gray-500 font-semibold">Check In</p>
+        <p class="font-black text-green-700 text-lg">${data.checkInTime||"—"}</p>
+        ${data.checkInImagePath ? `<img src="${data.checkInImagePath}" class="photo-thumb mt-1">` : ""}
+      </div>
+      <div class="bg-purple-50 rounded-xl p-3 border border-purple-100">
+        <p class="text-xs text-gray-500 font-semibold">Check Out</p>
+        <p class="font-black text-purple-700 text-lg">${data.checkOutTime||"—"}</p>
+        ${data.checkOutImagePath ? `<img src="${data.checkOutImagePath}" class="photo-thumb mt-1">` : ""}
+      </div>
+      <div class="bg-blue-50 rounded-xl p-3 border border-blue-100">
+        <p class="text-xs text-gray-500 font-semibold">Hours</p>
+        <p class="font-black text-blue-700 text-lg">${data.workingHours||0}h</p>
+      </div>
+      <div class="bg-gray-50 rounded-xl p-3 border border-gray-100">
+        <p class="text-xs text-gray-500 font-semibold">Status</p>
+        <p class="mt-1">${badge(data.status)}</p>
+      </div>
+    </div>`;
+
+    // Reflect done state
+    if (data.checkInTime)  { ciDone = true; markBtnDone("btn-ci","✓ Checked In"); }
+    if (data.checkOutTime) { coDone = true; markBtnDone("btn-co","✓ Checked Out"); }
+  } catch {}
+}
+
+/* ── Haversine ─────────────────────────────────────────────────────── */
+function hav(a,b,c,d){const R=6371000,f1=a*Math.PI/180,f2=c*Math.PI/180,df=(c-a)*Math.PI/180,dl=(d-b)*Math.PI/180,x=Math.sin(df/2)**2+Math.cos(f1)*Math.cos(f2)*Math.sin(dl/2)**2;return R*2*Math.atan2(Math.sqrt(x),Math.sqrt(1-x));}
+
+/* ── Location watch ─────────────────────────────────────────────────── */
+function startLocTracking() {
+  if (!navigator.geolocation) {
+    setLoc("fail","❌ Geolocation not supported by this browser."); return;
+  }
+  setLoc("loading","<i class='fas fa-spinner fa-spin mr-1'></i> Detecting location…");
+  if (watchId !== null) navigator.geolocation.clearWatch(watchId);
+
+  watchId = navigator.geolocation.watchPosition(pos => {
+    userLat = pos.coords.latitude; userLng = pos.coords.longitude;
+    const dist = hav(userLat, userLng, COLLEGE_LAT, COLLEGE_LNG);
+    locationOK  = true;   // ✅ Allow from anywhere
+    const dtxt  = dist < 1000 ? `${Math.round(dist)}m` : `${(dist/1000).toFixed(2)}km`;
+    const distEl = document.getElementById("loc-dist");
+    distEl.classList.remove("hidden");
+
+    setLoc("ok",`<div class="flex items-center justify-center gap-2 font-bold">
+      <i class="fas fa-check-circle text-green-500 animate-pulse"></i> Location Verified ✅</div>
+      <p class="text-green-700 text-xs font-bold mt-1">Chameli Devi Group of Institutions</p>`);
+    distEl.textContent = `📍 Location detected · Live tracking 🟢`;
+    checkReady();
+  }, err => {
+    locationOK = false;
+    const msgs = ["","Location permission denied. Allow in browser settings.","GPS unavailable. Enable GPS.","Location timeout. Retry."];
+    setLoc("fail",`❌ ${msgs[err.code]||"Location error."}<br>
+      <button onclick="startLocTracking()" class="btn btn-ghost btn-sm mt-2">Retry</button>`);
+    checkReady();
+  }, { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 });
+}
+function setLoc(type, html) {
+  const el = document.getElementById("loc-box");
+  el.className = { ok:"loc-ok", fail:"loc-fail", loading:"loc-loading" }[type]+" text-sm text-center";
+  el.innerHTML = html;
+}
+
+/* ── Camera ─────────────────────────────────────────────────────────── */
+async function startCam() {
+  try {
+    camStream = await navigator.mediaDevices.getUserMedia({ video:{facingMode:"user",width:640,height:480},audio:false });
+    document.getElementById("cam-feed").srcObject = camStream;
+    document.getElementById("btn-cam").classList.add("hidden");
+    document.getElementById("btn-scan").classList.remove("hidden");
+    document.getElementById("scan-line").classList.remove("hidden");
+    const ring = document.getElementById("face-ring");
+    ring.style.borderColor="#22c55e"; ring.style.borderStyle="solid";
+    ring.classList.add("ring-pulse");
+    document.getElementById("ring-txt").textContent = "Look straight at camera";
+  } catch { setFaceRes("error","❌ Camera access denied. Allow camera in browser settings."); }
+}
+
+/* ── Face scan & match ───────────────────────────────────────────────── */
+async function doFaceScan() {
+  if (!modelsOk) { setFaceRes("error","AI models not ready. Please wait."); return; }
+  if (!faculty?.faceDescriptor || !faculty?.hasFaceRegistered) {
+    setFaceRes("warning","Face not registered. Please register first."); return;
+  }
+
+  const video  = document.getElementById("cam-feed");
+  const canvas = document.getElementById("cam-canvas");
+  document.getElementById("btn-scan").disabled = true;
+  setFaceRes("info","🔍 Scanning face…");
+
+  canvas.width  = video.videoWidth  || 640;
+  canvas.height = video.videoHeight || 480;
+  canvas.style.display = "none";
+  canvas.getContext("2d").drawImage(video, 0, 0, canvas.width, canvas.height);
+  capturedB64 = canvas.toDataURL("image/jpeg", 0.85);
+
+  try {
+    const det = await faceapi
+      .detectSingleFace(canvas, new faceapi.TinyFaceDetectorOptions({inputSize:416,scoreThreshold:0.5}))
+      .withFaceLandmarks().withFaceDescriptor();
+
+    if (!det) {
+      setFaceRes("error","❌ No face detected.\nEnsure good lighting and face the camera directly.\nEmpty frame is not allowed.");
+      capturedB64 = ""; document.getElementById("btn-scan").disabled = false; return;
+    }
+
+    setFaceRes("info","⚙️ Matching with your registered face…");
+
+    const dist  = faceapi.euclideanDistance(new Float32Array(faculty.faceDescriptor), det.descriptor);
+    const score = Math.round((1 - dist) * 100);
+
+    if (dist <= FACE_THRESHOLD) {
+      faceOK = true;
+      document.getElementById("face-ring").style.borderColor = "#22c55e";
+      document.getElementById("scan-line").classList.add("hidden");
+      setFaceRes("success",`✅ Face Matched! Confidence: ${score}%`);
+      showIdCard();
+      document.getElementById("btn-scan").classList.add("hidden");
+      document.getElementById("btn-retry").classList.remove("hidden");
+    } else {
+      faceOK = false; capturedB64 = "";
+      document.getElementById("face-ring").style.borderColor = "#ef4444";
+      setFaceRes("error",`❌ Face does NOT match your registered face.\nThis could be someone else — attendance denied.\n(Confidence: ${score}%, Required ≥ ${Math.round((1-FACE_THRESHOLD)*100)}%)`);
+      document.getElementById("btn-scan").disabled = false;
+    }
+    checkReady();
+  } catch (e) {
+    setFaceRes("error","Error: " + e.message);
+    document.getElementById("btn-scan").disabled = false;
+    capturedB64 = "";
+  }
+}
+
+function retryScan() {
+  faceOK = false; capturedB64 = "";
+  document.getElementById("id-card").classList.add("hidden");
+  document.getElementById("face-res").classList.add("hidden");
+  document.getElementById("btn-retry").classList.add("hidden");
+  document.getElementById("btn-scan").classList.remove("hidden");
+  document.getElementById("btn-scan").disabled = false;
+  document.getElementById("face-ring").style.borderColor = "#22c55e";
+  checkReady();
+}
+
+function setFaceRes(type, msg) {
+  const el = document.getElementById("face-res");
+  el.classList.remove("hidden");
+  el.className = `mt-3 alert alert-${type} text-xs text-center whitespace-pre-line`;
+  el.textContent = msg;
+}
+
+function showIdCard() {
+  if (!faculty) return;
+  document.getElementById("ic-name").textContent  = faculty.name;
+  document.getElementById("ic-empid").textContent = "ID: " + faculty.employeeId;
+  document.getElementById("ic-dept").textContent  = faculty.department  || "";
+  document.getElementById("ic-desig").textContent = faculty.designation || "";
+  const ph = document.getElementById("ic-photo");
+  ph.src = faculty.faceImagePath || "";
+  ph.style.display = faculty.faceImagePath ? "" : "none";
+  document.getElementById("id-card").classList.remove("hidden");
+}
+
+/* ── Check ready ─────────────────────────────────────────────────────── */
+function checkReady() {
+  const ok = locationOK && faceOK;
+  if (!ciDone) {
+    document.getElementById("btn-ci").disabled = !ok;
+    document.getElementById("btn-ci").classList.toggle("opacity-40", !ok);
+  }
+  if (ciDone && !coDone) {
+    document.getElementById("btn-co").disabled = !ok;
+    document.getElementById("btn-co").classList.toggle("opacity-40", !ok);
+  }
+}
+
+/* ── Mark attendance ─────────────────────────────────────────────────── */
+async function markAtt(type) {
+  const btn    = document.getElementById(type === "in" ? "btn-ci" : "btn-co");
+  const resEl  = document.getElementById("att-res");
+  const origHtml = btn.innerHTML;
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+  resEl.classList.add("hidden");
+
+  try {
+    const endpoint = type === "in" ? "/api/attendance/check-in" : "/api/attendance/check-out";
+    const res  = await fetch(endpoint, {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ latitude:userLat, longitude:userLng, faceVerified:faceOK, capturedImage:capturedB64 })
+    });
+    const data = await res.json();
+    resEl.classList.remove("hidden");
+
+    if (res.ok) {
+      resEl.className = "mt-4 rounded-xl p-4 text-sm font-semibold text-center alert alert-success";
+      const extra = type === "out" && data.workingHours
+        ? `<br><small class="font-normal">Working Hours: ${data.workingHours}h · Status: ${data.status}</small>` : "";
+      resEl.innerHTML = `🎉 ${data.message}<br><small class="font-normal">${data.time}</small>${extra}`;
+      markBtnDone(type === "in" ? "btn-ci" : "btn-co", type === "in" ? "✓ Checked In" : "✓ Checked Out");
+      if (type === "in") { ciDone = true; } else { coDone = true; }
+      faceOK = false; capturedB64 = "";
+      await loadTodayStatus();
+    } else {
+      resEl.className = "mt-4 rounded-xl p-4 text-sm font-semibold text-center alert alert-error";
+      resEl.textContent = "❌ " + data.error;
+      btn.disabled = false; btn.innerHTML = origHtml;
+    }
+  } catch {
+    resEl.classList.remove("hidden");
+    resEl.className = "mt-4 rounded-xl p-4 text-sm font-semibold text-center alert alert-error";
+    resEl.textContent = "❌ Server connection failed.";
+    btn.disabled = false; btn.innerHTML = origHtml;
+  }
+}
+
+function markBtnDone(id, txt) {
+  const b = document.getElementById(id);
+  b.disabled = true; b.classList.add("opacity-60");
+  b.innerHTML = `<i class="fas fa-check"></i><span class="font-black text-sm">${txt}</span>`;
+}
+
+init();
+</script>
+{% endblock %}
